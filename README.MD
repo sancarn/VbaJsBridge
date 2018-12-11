@@ -15,6 +15,14 @@ Evaluates javascript asynchronously. The return value of this method is the Call
 
 ## Planned usage
 
+### `cVbaJsBridge#accept(acceptList as string) As String`
+
+Use to define what requests OfficeJS has access to.
+
+### `cVbaJsBridge#expose(ObjOrModule as Variant, ProcName as String, argsLength as Integer, Optional CallType as String) As String`
+
+Expose a specific special method to OfficeJS. This is advised over direct execution as it is more secure.
+
 ### `cVbaJsBridge#evalJSSync(js As String, Optional id As String) As String`
 
 Evaluate JavaScript synchronously.
