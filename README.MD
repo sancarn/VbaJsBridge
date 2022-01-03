@@ -1,64 +1,77 @@
-# VbaJsBridge
+# Simple VBA-OfficeJS bridge
 
-Send messages between VBA and OfficeJS, execute code dynamically, interact with COM and more!
+This is a bare-bones sample which demonstrates how to send messages to JavaScript clients using Excel-VBA.
 
 ## Usage
 
-### `cVbaJsBridge.Create(workbook as Workbook, Optional Namespace As String = "VBA-JS-Bridge") as cVbaJsBridge`
+* From your VBA environment download and import the `JsBridge.cls` file in the `src/vba` folder.
+* In your TypeScript environment download and import the `XMLWatcher.ts` code.
 
-Create VbaJsBridge in a particular workbook and optionally supply a Namespace to be used to transport messages back and forth between VBA and JavaScript.
+From VBA:
 
-### `cVbaJsBridge#evalJS(js As String, Optional id As String) As String`
+```vb
+'Requires JsBridge from here:             https://github.com/sancarn/VbaJsBridge
+'ScriptLab test can be downloaded here:   https://gist.github.com/sancarn/b974b650f4b451ff2de51861af1671b1
+Sub test()
+  Dim js As JsBridge: Set js = JsBridge.Create("test")
+  Call js.SendMessageSync("hello world")
 
-Evaluates javascript asynchronously. The return value of this method is the CallbackID used to call your VBA callback. Currently VBA callbacks are only partially implemented.
-
-
-## Planned usage
-
-### `cVbaJsBridge#accept(acceptList as string) As String`
-
-Use to define what requests OfficeJS has access to.
-
-### `cVbaJsBridge#expose(ObjOrModule as Variant, ProcName as String, argsLength as Integer, Optional CallType as String) As String`
-
-Expose a specific special method to OfficeJS. This is advised over direct execution as it is more secure.
-
-### `cVbaJsBridge#evalJSSync(js As String, Optional id As String) As String`
-
-Evaluate JavaScript synchronously.
-
-### `cVbaJsBridge#addCallback(CallbackID As String, ObjOrModule as Variant, ProcName as String, args() as Variant, Optional CallType as String) As String`
-
-Adds a VBA callback to the bridge. This will allow for asynchonous callbacks from JavaScript to VBA.
-
-## Planned usage from JavaScript!
-
-### `cVbaJsBridge.Create()`
-
-Create a VbaJsBridge object which can be used to request proxies to VBA objects.
-
-### `cVbaJsBridge#CreateObject([class as String],[server as String])`
-
-Uses VBA CreateObject method to instantiate a COM object. Exposes a Proxy object which can be used to request properties and methods. E.G:
-
-```js
-let bridge  = cVbaJsBridge.Create()
-let wordApp = await bridge.CreateObject("Word.Application");
-let pnt     = await wordApp.CentimetersToPoints(1) //Call method
-let doc     = await wordApp.$ActiveDocument //Get property - notice properties require $ prefix.
-let canCIn  = await doc.CanCheckIn()
+  Dim col as new collection
+  For i = 1 to 10
+    'Add action to a collection so we can check it's status later
+    col.add js.SendMessage("hello " & i)
+  next
+End Sub
 ```
 
-### `cVbaJsBridge#GetObject([ pathname as String ], [ class as String] )`
+From TypeScript we link the connection as follows:
 
-Uses VBA CreateObject method to instantiate a COM object. Exposes a Proxy object which can be used to request properties and methods. See CreateObject for usage details.
+```ts
+let watcher: XMLWatcher;
+async function run() {
+    await Excel.run(async (context) => {
+        watcher = new XMLWatcher(context, "test", function(vbaData, action) {
+            //Do whatever you want with the data from VBA
+            console.log(vbaData);
 
-### `cVbaJsBridge#GetApplication()`
+            //Remember to notify that the action is complete, otherwise `js.DeleteAll()` can be called
+            action.finish();
 
-Gets the VBA `Application` object. Exposes a Proxy object which can be used to request properties and methods. See CreateObject for usage details.
+            //Returning true signals to the bridge that you have handled this request.
+            return true;
+        });
+    });
+}
+```
 
-### `cVbaJsBridge#Call(module,method,args)`
+## Future of this project
 
-Call a method in a module. 
+In the future we'd like to add more abstractions to the system to allow definition of a full API with return values. This will likely look something like:
+
+```ts
+include {VBABridge} from "my/cdn"
+vba = VBABridge.CreateWithAPI("fa08a4b0-2806-493f-85c3-de7eab8c6f30", {
+    func1: ()=> console.log(1),
+    func2: ()=>{/* do something else */},
+    add: (a,b) => a+b
+})
+vba.someAPIFunction(1,2,"hello", {some:"JSON"})
+```
+
+from the TypeScript environment and 
+
+```vb
+set myAPIObject = new MyCustomAPIObject
+set js = JsBridge.CreateWithAPI("fa08a4b0-2806-493f-85c3-de7eab8c6f30", myAPIObject)
+Call js("func1")
+Debug.Print js("add", Array(1, 2)) '3
+```
+
+from the VBA side.
+
+## Useful links
+
+* The JavaScript [demo](https://gist.github.com/sancarn/b974b650f4b451ff2de51861af1671b1) split out in these source files.
+
 
 
